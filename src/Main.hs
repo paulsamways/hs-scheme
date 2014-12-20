@@ -10,7 +10,7 @@ main = runInputT defaultSettings loop
           input <- getInputLine "> "
           case input of
            Nothing -> loop
-           Just ['\\','q'] -> outputStrLn "Exiting..."
+           Just ":q" -> outputStrLn "Exiting..."
            Just s  -> do
              value <- return $ liftM show $ readExpr s >>= eval
              outputStrLn $ extractValue $ trapError value

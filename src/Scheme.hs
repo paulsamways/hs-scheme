@@ -162,31 +162,39 @@ numBoolBinop  = boolBinOp unpackNum
 strBoolBinop  = boolBinOp unpackStr
 boolBoolBinop = boolBinOp unpackBool
 
-arity2Func :: (LispValue -> LispValue -> a) -> (a -> LispValue) -> [LispValue] -> ThrowsError LispValue
-arity2Func f g [a,b] = return $ g $ f a b
-arity2Func _ _ args = throwError $ ErrorArity 2 args
+arity2Func :: (a -> b -> c) -> (LispValue -> ThrowsError a) -> (LispValue -> ThrowsError b) -> (c -> LispValue) -> [LispValue] -> ThrowsError LispValue
+arity2Func f fa fb fc [a,b] = do
+  a' <- fa a
+  b' <- fb b
+  return $ fc $ f a' b'
+arity2Func _ _ _ _ args = throwError $ ErrorArity 2 args
+
+onlyBool :: (LispValue -> ThrowsError Bool)
+onlyBool (LispBool x) = return x
+onlyBool x = throwError $ ErrorTypeMismatch "boolean" x
+
+onlyNumber :: (LispValue -> ThrowsError Integer)
+onlyNumber (LispNumber x) = return x
+onlyNumber x = throwError $ ErrorTypeMismatch "number" x
 
 primitives :: [(String, [LispValue] -> ThrowsError LispValue)]
-primitives = [("+", numericBinOp (+))
-             ,("-", numericBinOp (-))
-             ,("*", numericBinOp (*))
-             ,("/", numericBinOp div)
-             ,("mod", numericBinOp mod)
-             ,("quotient", numericBinOp quot)
-             ,("remainder", numericBinOp rem)
-             ,("=", arity2Func (==) LispBool)
-             ,("<", numBoolBinop (<))
-             ,(">", numBoolBinop (>))
-             ,("/=", numBoolBinop (/=))
-             ,(">=", numBoolBinop (>=))
-             ,("<=", numBoolBinop (<=))
-             ,("&&", boolBoolBinop (&&))
-             ,("||", boolBoolBinop (||))
-             ,("string=?", strBoolBinop (==))
-             ,("string<?", strBoolBinop (<))
-             ,("string>?", strBoolBinop (>))
-             ,("string<=?", strBoolBinop (<=))
-             ,("string>=?", strBoolBinop (>=))
+primitives = [("+", arity2Func (+) onlyNumber onlyNumber LispNumber)
+             ,("-", arity2Func (-) onlyNumber onlyNumber LispNumber)
+             ,("*", arity2Func (*) onlyNumber onlyNumber LispNumber)
+             ,("/", arity2Func div onlyNumber onlyNumber LispNumber)
+             ,("mod", arity2Func mod onlyNumber onlyNumber LispNumber)
+             ,("quotient", arity2Func quot onlyNumber onlyNumber LispNumber)
+             ,("remainder", arity2Func rem onlyNumber onlyNumber LispNumber)
+              
+             ,("=", arity2Func (==) return return LispBool)
+             ,("!=", arity2Func (/=) return return LispBool)
+             ,("<", arity2Func (<) return return LispBool)
+             ,(">", arity2Func (>) return return LispBool)
+             ,(">=", arity2Func (>=) return return LispBool)
+             ,("<=", arity2Func (<=) return return LispBool)
+             ,("&&", arity2Func (&&) onlyBool onlyBool LispBool)
+             ,("||", arity2Func (||) onlyBool onlyBool LispBool)
+              
              ,("car", car)
              ,("cdr", cdr)]
 
